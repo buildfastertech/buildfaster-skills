@@ -284,48 +284,73 @@ Order issues by severity in both the report and the todo file:
 
 ### High Confidence (almost certainly a bug)
 
-```php
-// Missing required parameter - will cause PHP Fatal Error
-$serviceDesk->isUserClient($user); // Method requires 2 parameters
-```
+These issues will cause errors or security vulnerabilities:
 
-```javascript
-// Will throw TypeError - accessing property of undefined
-const name = user.profile.name; // user.profile is not checked
+```
+# Wrong number of arguments
+calculateTotal(price)  // Function requires 2 parameters: price and quantity
+
+# Null/undefined access without check
+user.profile.name  // user.profile could be null/undefined
+
+# SQL injection
+query("SELECT * FROM users WHERE id = " + id)  // Direct string concatenation
+
+# Division by zero
+total / count  // count could be 0
+
+# Array index out of bounds
+items[items.length]  // Off-by-one error, should be length - 1
 ```
 
 ### Medium Confidence (likely a problem)
 
-```php
-// Validation gap - both can be null if both keys present with null values
-$rules = [
-    'user_id' => 'required_without:email|nullable',
-    'email' => 'required_without:user_id|nullable',
-];
-// Request: {"user_id": null, "email": null} passes but causes runtime error
-```
+These issues are probably bugs but may be intentional:
 
-```javascript
-// Missing dependency may cause stale closure
-useEffect(() => {
-    fetchData(userId);
-}, []); // userId not in deps - may use stale value
+```
+# Missing error handling
+response = await fetch(url)  // No try-catch, no error check
+
+# Unchecked return value
+file = openFile(path)  // File might not exist, return not checked
+file.read()
+
+# Race condition
+if (!exists(file)) {
+    create(file)  // Another process might create it between check and create
+}
+
+# Resource leak
+connection = database.connect()
+result = connection.query(sql)
+return result  // Connection never closed
+
+# Off-by-one in loops
+for (i = 0; i <= array.length; i++)  // Should be < not <=
 ```
 
 ### Low Confidence (speculative)
 
-```php
-// Could extract to reduce duplication
-if ($user->isAdmin()) {
-    // 10 lines of logic
-}
-// Same 10 lines appear in another controller
-```
+These might be issues depending on context:
 
-```javascript
-// Consider memoizing expensive calculation
-const result = items.filter(...).map(...).reduce(...);
-// May or may not be a performance issue depending on data size
+```
+# Duplicated logic
+// Same 10 lines appear in multiple places - could extract to shared function
+
+# Magic numbers
+if (status == 3)  // What does 3 mean? Consider using a constant
+
+# Deep nesting
+if (a) {
+    if (b) {
+        if (c) {  // Hard to follow - consider early returns
+
+# Large function
+function processOrder() {
+    // 200+ lines - might benefit from being split up
+
+# Unused variable
+result = calculate()  // 'result' is never used
 ```
 
 ## Best Practices
@@ -377,14 +402,14 @@ const result = items.filter(...).map(...).reduce(...);
 - **Impact**: Could throw a null reference error at runtime
 - **Suggestion**: Add null check before accessing the property
 
-### [File: src/requests/InviteRequest.php]
+### [File: src/utils/config.py]
 
-**Line 15-18**: Validation allows invalid state
+**Line 15-18**: Resource not closed after use
 - **Type**: Logic Error
 - **Confidence**: Medium
-- **Description**: required_without + nullable allows both user_id and email to be null
-- **Impact**: Causes runtime error when explode('@', null) is called
-- **Suggestion**: Use custom validation or required_without_all with additional check
+- **Description**: Database connection opened but never closed in error path
+- **Impact**: Could cause connection pool exhaustion under load
+- **Suggestion**: Use try/finally or context manager to ensure cleanup
 
 ## Informational
 
